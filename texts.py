@@ -196,6 +196,44 @@ WEEKDAYS: dict[str, list[str]] = {
 }
 
 
+# ---------- Помощь, подписка на новости, защита от спама ----------
+
+_EXTRA2 = {
+    "az": {
+        "help": "ℹ️ <b>Kömək</b>\n\nMenyudan bölmə seçin: fakültələr, qəbul, xəbərlər, elanlar, dərs cədvəli, əlaqə və tələbə kabineti.\n\n🔔 «Xəbərlər» və ya «Elanlar» bölməsində abunə düyməsini basın: yeni xəbər və ya elan çıxan kimi sizə bildiriş göndərəcəyəm.\n\n<b>Əmrlər</b>\n/start — başlamaq\n/menu — əsas menyu\n/help — kömək\n/cancel — cari əməliyyatı ləğv etmək",
+        "sub_btn_on": "🔔 Yeni xəbərlərə abunə ol",
+        "sub_btn_off": "🔕 Abunəliyi ləğv et",
+        "sub_enabled": "✅ Abunə aktivdir: yeni xəbər və elanlar barədə bildiriş alacaqsınız.",
+        "sub_disabled": "Abunəlik ləğv edildi.",
+        "alert_news": "🔔 <b>Yeni xəbər</b>",
+        "alert_ann": "🔔 <b>Yeni elan</b>",
+        "throttled": "⏳ Çox tez-tez sorğu göndərirsiniz. Zəhmət olmasa bir neçə saniyə gözləyin.",
+    },
+    "ru": {
+        "help": "ℹ️ <b>Помощь</b>\n\nВыберите раздел в меню: факультеты, поступление, новости, объявления, расписание, контакты и кабинет студента.\n\n🔔 В разделе «Новости» или «Объявления» нажмите кнопку подписки: я пришлю уведомление, как только на сайте появится новая новость или объявление.\n\n<b>Команды</b>\n/start — начать\n/menu — главное меню\n/help — помощь\n/cancel — отменить текущее действие",
+        "sub_btn_on": "🔔 Подписаться на новые новости",
+        "sub_btn_off": "🔕 Отписаться",
+        "sub_enabled": "✅ Подписка включена: вы получите уведомление о новых новостях и объявлениях.",
+        "sub_disabled": "Подписка отключена.",
+        "alert_news": "🔔 <b>Новая новость</b>",
+        "alert_ann": "🔔 <b>Новое объявление</b>",
+        "throttled": "⏳ Слишком много запросов. Пожалуйста, подождите несколько секунд.",
+    },
+    "en": {
+        "help": "ℹ️ <b>Help</b>\n\nChoose a section in the menu: faculties, admission, news, announcements, schedule, contacts and the student account.\n\n🔔 In the News or Announcements section, tap the subscribe button: I will notify you as soon as a new news item or announcement appears on the website.\n\n<b>Commands</b>\n/start — start\n/menu — main menu\n/help — help\n/cancel — cancel the current action",
+        "sub_btn_on": "🔔 Subscribe to new news",
+        "sub_btn_off": "🔕 Unsubscribe",
+        "sub_enabled": "✅ Subscribed: you will be notified about new news and announcements.",
+        "sub_disabled": "Unsubscribed.",
+        "alert_news": "🔔 <b>New news</b>",
+        "alert_ann": "🔔 <b>New announcement</b>",
+        "throttled": "⏳ Too many requests. Please wait a few seconds.",
+    },
+}
+for _lang, _extra in _EXTRA2.items():
+    T[_lang].update(_extra)
+
+
 # ---------- Служебные таблицы для статистики и фильтров ----------
 
 SECTION_BUTTONS = (

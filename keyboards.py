@@ -112,3 +112,21 @@ def myschedule_inline(lang: str, mode: str) -> InlineKeyboardMarkup:
         button = InlineKeyboardButton(text=t(lang, "btn_today"), callback_data="ms:today")
     return InlineKeyboardMarkup(inline_keyboard=[[button]])
 
+
+def news_inline(lang: str, kind: str, subscribed: bool) -> InlineKeyboardMarkup:
+    """Кнопки под списком новостей/объявлений: подписка и ссылка на все материалы."""
+    link_key, url = ("btn_all_news", data.NEWS_ALL_URL) if kind == "news" else ("btn_all_ann", data.ANN_ALL_URL)
+    sub_text = t(lang, "sub_btn_off" if subscribed else "sub_btn_on")
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=sub_text, callback_data=f"sub:{kind}")],
+            [InlineKeyboardButton(text=t(lang, link_key), url=url)],
+        ]
+    )
+
+
+def alert_inline(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=t(lang, "sub_btn_off"), callback_data="sub:off")]]
+    )
+

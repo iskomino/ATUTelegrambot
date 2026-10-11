@@ -25,7 +25,7 @@ AT: dict[str, dict[str, str]] = {
         "sec_contacts": "Əlaqə",
         "sec_cabinet": "Tələbə kabineti",
         "sec_lang": "Dil dəyişmə",
-        "stats": "📊 <b>Statistika</b>\n\n👥 İstifadəçilər: <b>{total}</b>\n🟢 Aktiv: 24 saat — {a24} · 7 gün — {a7}\n🚫 Botu bloklayanlar: {blocked}\n🌐 Dillər: {langs}\n\n🔥 <b>Populyar bölmələr (7 gün)</b>\n{top}\n\n📰 Saytdan xəbərlər: {updated}",
+        "stats": "📊 <b>Statistika</b>\n\n👥 İstifadəçilər: <b>{total}</b>\n🟢 Aktiv: 24 saat — {a24} · 7 gün — {a7}\n🚫 Botu bloklayanlar: {blocked}\n🔔 Xəbər abunəçiləri: {subs}\n🌐 Dillər: {langs}\n\n🔥 <b>Populyar bölmələr (7 gün)</b>\n{top}\n\n📰 Saytdan xəbərlər: {updated}",
         "no_data": "• hələlik məlumat yoxdur",
         "never_updated": "hələ yenilənməyib",
         "refreshing": "Yenilənir…",
@@ -70,7 +70,7 @@ AT: dict[str, dict[str, str]] = {
         "sec_contacts": "Контакты",
         "sec_cabinet": "Кабинет студента",
         "sec_lang": "Смена языка",
-        "stats": "📊 <b>Статистика</b>\n\n👥 Пользователей: <b>{total}</b>\n🟢 Активны за 24 ч: {a24} · за 7 дней: {a7}\n🚫 Заблокировали бота: {blocked}\n🌐 Языки: {langs}\n\n🔥 <b>Популярные разделы (7 дней)</b>\n{top}\n\n📰 Новости с сайта: {updated}",
+        "stats": "📊 <b>Статистика</b>\n\n👥 Пользователей: <b>{total}</b>\n🟢 Активны за 24 ч: {a24} · за 7 дней: {a7}\n🚫 Заблокировали бота: {blocked}\n🔔 Подписчиков на новости: {subs}\n🌐 Языки: {langs}\n\n🔥 <b>Популярные разделы (7 дней)</b>\n{top}\n\n📰 Новости с сайта: {updated}",
         "no_data": "• пока нет данных",
         "never_updated": "ещё не обновлялись",
         "refreshing": "Обновляю…",
@@ -115,7 +115,7 @@ AT: dict[str, dict[str, str]] = {
         "sec_contacts": "Contacts",
         "sec_cabinet": "Student account",
         "sec_lang": "Language change",
-        "stats": "📊 <b>Statistics</b>\n\n👥 Users: <b>{total}</b>\n🟢 Active in 24 h: {a24} · in 7 days: {a7}\n🚫 Blocked the bot: {blocked}\n🌐 Languages: {langs}\n\n🔥 <b>Popular sections (7 days)</b>\n{top}\n\n📰 News from website: {updated}",
+        "stats": "📊 <b>Statistics</b>\n\n👥 Users: <b>{total}</b>\n🟢 Active in 24 h: {a24} · in 7 days: {a7}\n🚫 Blocked the bot: {blocked}\n🔔 News subscribers: {subs}\n🌐 Languages: {langs}\n\n🔥 <b>Popular sections (7 days)</b>\n{top}\n\n📰 News from website: {updated}",
         "no_data": "• no data yet",
         "never_updated": "not updated yet",
         "refreshing": "Refreshing…",
@@ -210,3 +210,12 @@ _AT_EXTRA = {
 }
 for _lang, _extra in _AT_EXTRA.items():
     AT[_lang].update(_extra)
+
+_AT_EXTRA2 = {
+    "az": {"btn_alert_preview": "🔔 Bildirişin nümunəsi", "alert_preview_sent": "Nümunə yalnız sizə göndərildi"},
+    "ru": {"btn_alert_preview": "🔔 Пример уведомления", "alert_preview_sent": "Пример отправлен только вам"},
+    "en": {"btn_alert_preview": "🔔 Notification preview", "alert_preview_sent": "Preview sent to you only"},
+}
+for _lang, _extra in _AT_EXTRA2.items():
+    AT[_lang].update(_extra)
+

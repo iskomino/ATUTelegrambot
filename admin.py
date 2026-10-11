@@ -14,11 +14,13 @@ from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, Teleg
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, Message
 
 import content
 import data
 import db
+import keyboards as kb
+import notifier
 from admin_texts import at, section_name
 from config import ADMIN_IDS
 from store import get_lang
@@ -75,6 +77,7 @@ def panel_kb(lang: str) -> InlineKeyboardMarkup:
             [(at(lang, "btn_stats"), "adm:stats")],
             [(at(lang, "btn_broadcast"), "adm:bc")],
             [(at(lang, "btn_refresh"), "adm:news")],
+            [(at(lang, "btn_alert_preview"), "adm:alert")],
             [(at(lang, "btn_schedule"), "adm:sch")],
             [(at(lang, "btn_contacts"), "adm:contacts")],
         ]
@@ -132,6 +135,7 @@ async def cb_stats(call: CallbackQuery):
         a24=s["active_24h"],
         a7=s["active_7d"],
         blocked=s["blocked"],
+        subs=s["subscribers"],
         langs=html.escape(langs),
         top=top,
         updated=updated_text,
@@ -152,6 +156,24 @@ async def cb_news(call: CallbackQuery):
     else:
         text = at(lang, "news_fail", error=html.escape(str(result["error"]))[:500])
     await _edit(call, text, back_kb(lang))
+
+
+# ---------- Пример уведомления (только администратору) ----------
+
+@admin_router.callback_query(F.data == "adm:alert")
+async def cb_alert_preview(call: CallbackQuery, bot: Bot):
+    """Присылает ТОЛЬКО администратору пример уведомления с последней новостью (для демонстрации)."""
+    lang = get_lang(call.from_user.id)
+    await call.answer(at(lang, "alert_preview_sent"))
+    news = content.get_news()
+    if not news:
+        return
+    await bot.send_message(
+        call.from_user.id,
+        notifier.build_text(lang, [dict(news[0], kind="news")]),
+        reply_markup=kb.alert_inline(lang),
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )
 
 
 # ---------- Рассылка ----------

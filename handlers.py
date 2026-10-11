@@ -80,6 +80,15 @@ async def show_menu(message: Message, state: FSMContext):
     await message.answer(t(lang, "menu_title"), reply_markup=kb.main_menu(lang))
 
 
+@router.message(Command("help"))
+async def cmd_help(message: Message, state: FSMContext):
+    await state.clear()
+    if not message.from_user:
+        return
+    lang = get_lang(message.from_user.id)
+    await message.answer(t(lang, "help"), reply_markup=kb.main_menu(lang))
+
+
 @router.message(Command("cancel"))
 async def cmd_cancel(message: Message, state: FSMContext):
     await state.clear()
@@ -175,7 +184,7 @@ async def news(message: Message, state: FSMContext):
     lang = get_lang(message.from_user.id)
     await message.answer(
         t(lang, "news_title") + "\n" + _format_items(content.get_news()),
-        reply_markup=kb.single_link(t(lang, "btn_all_news"), data.NEWS_ALL_URL),
+        reply_markup=kb.news_inline(lang, "news", await db.is_subscribed(message.from_user.id)),
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
@@ -188,9 +197,33 @@ async def announcements(message: Message, state: FSMContext):
     lang = get_lang(message.from_user.id)
     await message.answer(
         t(lang, "ann_title") + "\n" + _format_items(content.get_ann()),
-        reply_markup=kb.single_link(t(lang, "btn_all_ann"), data.ANN_ALL_URL),
+        reply_markup=kb.news_inline(lang, "ann", await db.is_subscribed(message.from_user.id)),
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
+
+
+@router.callback_query(F.data.startswith("sub:"))
+async def cb_subscribe(call: CallbackQuery):
+    uid = call.from_user.id
+    lang = get_lang(uid)
+    action = (call.data or "").split(":", 1)[-1]
+    markup = None
+    if action == "off":  # кнопка под самим уведомлением
+        await db.set_subscription(uid, False)
+        await call.answer(t(lang, "sub_disabled"))
+    elif action in ("news", "ann"):
+        enabled = not await db.is_subscribed(uid)
+        await db.set_subscription(uid, enabled)
+        await call.answer(t(lang, "sub_enabled" if enabled else "sub_disabled"))
+        markup = kb.news_inline(lang, action, enabled)
+    else:
+        await call.answer()
+        return
+    if isinstance(call.message, Message):
+        try:
+            await call.message.edit_reply_markup(reply_markup=markup)
+        except TelegramBadRequest:
+            pass
 
 
 @router.message(is_btn("btn_contacts"))

@@ -17,11 +17,45 @@ from site_parser import BASE_URL, parse_home
 logger = logging.getLogger(__name__)
 
 MAX_ITEMS = 5
+MAX_NOTIFY = 5       # не больше стольких уведомлений за один цикл обновления
+MAX_SEEN = 300       # сколько уже виденных ссылок помнить
+SEEN_KEY = "seen_urls"
 CONTACT_FIELDS = ("phone", "email", "address")
 
 _state: dict = {"news": list(data.NEWS), "ann": list(data.ANNOUNCEMENTS), "updated": None}
 _contact_overrides: dict[str, str] = {}
 _refresh_lock = asyncio.Lock()
+_new_items_handler = None
+
+
+def set_new_items_handler(handler) -> None:
+    """Регистрирует функцию, которая вызывается со списком новых материалов сайта (для уведомлений)."""
+    global _new_items_handler
+    _new_items_handler = handler
+
+
+async def _detect_new(news: list[dict], ann: list[dict]) -> list[dict]:
+    """Находит материалы, которых бот ещё не видел.
+
+    При самом первом запуске функции только запоминает текущее состояние сайта и ничего не рассылает,
+    чтобы подписчики не получили старые новости как «новые».
+    """
+    current = [("news", i) for i in news] + [("ann", i) for i in ann]
+    raw = await db.kv_get(SEEN_KEY)
+    if raw is None:
+        baseline = [i["url"] for _, i in current] + [i["url"] for i in _state["news"] + _state["ann"]]
+        await db.kv_set(SEEN_KEY, json.dumps(list(dict.fromkeys(baseline))[-MAX_SEEN:]))
+        return []
+    try:
+        seen_list = [u for u in json.loads(raw) if isinstance(u, str)]
+    except ValueError:
+        seen_list = []
+    seen = set(seen_list)
+    new_items = [dict(item, kind=kind) for kind, item in current if item["url"] not in seen]
+    if new_items:
+        seen_list = (seen_list + [i["url"] for i in new_items])[-MAX_SEEN:]
+        await db.kv_set(SEEN_KEY, json.dumps(seen_list))
+    return new_items
 
 
 def _valid_items(items) -> bool:
@@ -129,4 +163,18 @@ async def refresh() -> dict:
                 ensure_ascii=False,
             ),
         )
-        return {"ok": True, "news": len(news), "ann": len(ann), "error": None}
+
+        try:
+            new_items = await _detect_new(news, ann)
+        except Exception:  # noqa: BLE001 - сбой уведомлений не должен ломать обновление новостей
+            logger.exception("Не удалось определить новые материалы")
+            new_items = []
+        if new_items and _new_items_handler is not None:
+            if len(new_items) > MAX_NOTIFY:
+                logger.warning("Новых материалов %s, уведомления отправляются только по %s", len(new_items), MAX_NOTIFY)
+                new_items = new_items[:MAX_NOTIFY]
+            try:
+                _new_items_handler(new_items)
+            except Exception:  # noqa: BLE001
+                logger.exception("Обработчик новых материалов завершился с ошибкой")
+        return {"ok": True, "news": len(news), "ann": len(ann), "new": len(new_items), "error": None}

@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS schedules (
     file_type TEXT NOT NULL,
     created INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS subscriptions (
+    uid INTEGER PRIMARY KEY,
+    created INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS kv (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -123,6 +127,9 @@ def _get_stats() -> dict:
         "active_24h": one("SELECT COUNT(*) FROM users WHERE last_seen >= ?", (now - 86400,)),
         "active_7d": one("SELECT COUNT(*) FROM users WHERE last_seen >= ?", (now - 7 * 86400,)),
         "blocked": one("SELECT COUNT(*) FROM users WHERE blocked = 1"),
+        "subscribers": one(
+            "SELECT COUNT(*) FROM subscriptions s JOIN users u ON u.id = s.uid WHERE u.blocked = 0"
+        ),
         "langs": {
             (lang or "?"): int(cnt)
             for lang, cnt in conn.execute("SELECT lang, COUNT(*) FROM users GROUP BY lang").fetchall()
@@ -149,6 +156,45 @@ def _kv_set(key: str, value: str) -> None:
         (key, value),
     )
     conn.commit()
+
+
+# ---------- подписка на уведомления о новостях ----------
+
+def _set_subscription(uid: int, enabled: bool) -> None:
+    now = int(time.time())
+    conn = _db()
+    conn.execute(
+        "INSERT INTO users(id, first_seen, last_seen) VALUES(?, ?, ?) ON CONFLICT(id) DO NOTHING",
+        (uid, now, now),
+    )
+    if enabled:
+        conn.execute("INSERT OR IGNORE INTO subscriptions(uid, created) VALUES(?, ?)", (uid, now))
+    else:
+        conn.execute("DELETE FROM subscriptions WHERE uid = ?", (uid,))
+    conn.commit()
+
+
+def _is_subscribed(uid: int) -> bool:
+    return _db().execute("SELECT 1 FROM subscriptions WHERE uid = ?", (uid,)).fetchone() is not None
+
+
+def _subscriber_ids() -> list[int]:
+    rows = _db().execute(
+        "SELECT s.uid FROM subscriptions s JOIN users u ON u.id = s.uid WHERE u.blocked = 0"
+    ).fetchall()
+    return [int(r[0]) for r in rows]
+
+
+async def set_subscription(uid: int, enabled: bool) -> None:
+    await _call(_set_subscription, uid, enabled)
+
+
+async def is_subscribed(uid: int) -> bool:
+    return await _call(_is_subscribed, uid)
+
+
+async def subscriber_ids() -> list[int]:
+    return await _call(_subscriber_ids)
 
 
 # ---------- расписания (файлы по факультетам; сами файлы хранит Telegram, у нас только file_id) ----------
