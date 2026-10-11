@@ -1,7 +1,8 @@
-"""Оформление бота в Telegram: описание, краткое описание и команды на языке пользователя.
+"""Оформление бота в Telegram: описание, краткое описание (только на азербайджанском) и команды.
 
-Тексты видны ещё до нажатия /start. Пока проект не утверждён университетом, в них стоит
-пометка «демо-версия»; после утверждения её можно убрать здесь же.
+Описание и «About» одинаковы для всех пользователей. Отдельные версии для русского и английского
+языков Telegram удаляются (пустая строка), поэтому остаётся один азербайджанский текст.
+Команды в меню бота показываются на языке пользователя (az / ru / en).
 Лимиты Telegram: описание до 512 символов, краткое до 120, описание команды до 256.
 """
 import logging
@@ -10,8 +11,6 @@ from aiogram import Bot
 from aiogram.types import BotCommand
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_PROFILE_LANG = "az"
 
 DESCRIPTION = {
     "az": """🎓 ATU tələbələri və abituriyentləri üçün rəqəmsal köməkçi!
@@ -23,14 +22,10 @@ Fakültələr, qəbul, dərs cədvəlləri, xəbərlər, elanlar və əlaqə mə
 🌐 Azərbaycan, rus və ingilis dilləri
 
 Başlamaq üçün /start düyməsini basın!""",
-    "ru": "Информационный бот для Азербайджанского технологического университета (демо-версия). Факультеты, поступление, новости и объявления, расписание занятий, контакты. Можно подписаться на новые новости. Нажмите /start, чтобы начать.",
-    "en": "Information bot for Azerbaijan Technology University (demo version). Faculties, admission, news and announcements, class schedules and contacts. You can subscribe to new-news notifications. Press /start to begin.",
 }
 
 SHORT_DESCRIPTION = {
     "az": "ATU üçün rəqəmsal köməkçi: fakültələr, qəbul, xəbərlər, cədvəl və yeni xəbər bildirişləri 🎓",
-    "ru": "Информационный бот АТУ (демо): факультеты, поступление, новости, расписание",
-    "en": "ATU information bot (demo): faculties, admission, news, schedules",
 }
 
 COMMANDS = {
@@ -39,23 +34,36 @@ COMMANDS = {
     "en": [("start", "Start"), ("menu", "Main menu"), ("help", "Help"), ("cancel", "Cancel")],
 }
 
+# Языки Telegram, для которых отдельное описание удаляется (показывается общий азербайджанский текст)
+REMOVE_DEDICATED_FOR = ("ru", "en")
+
 
 async def setup_profile(bot: Bot) -> None:
     """Применяет оформление. Каждый вызов независим: сбой одного (например, лимит Telegram)
     не мешает остальным и не мешает запуску бота."""
-    for lang_code, texts_lang in [(None, DEFAULT_PROFILE_LANG), ("az", "az"), ("ru", "ru"), ("en", "en")]:
-        label = lang_code or "по умолчанию"
-        calls = {
-            "описание": lambda: bot.set_my_description(description=DESCRIPTION[texts_lang], language_code=lang_code),
-            "краткое описание": lambda: bot.set_my_short_description(
-                short_description=SHORT_DESCRIPTION[texts_lang], language_code=lang_code
-            ),
-            "команды": lambda: bot.set_my_commands(
-                [BotCommand(command=c, description=d) for c, d in COMMANDS[texts_lang]], language_code=lang_code
-            ),
-        }
-        for what, call in calls.items():
-            try:
-                await call()
-            except Exception:  # noqa: BLE001
-                logger.exception("Не удалось обновить профиль бота: %s (язык %s)", what, label)
+    description, short = DESCRIPTION["az"], SHORT_DESCRIPTION["az"]
+    calls: list[tuple[str, object]] = []
+
+    # общий текст: по умолчанию и для азербайджанского языка
+    for code in (None, "az"):
+        label = code or "по умолчанию"
+        calls.append((f"описание ({label})", lambda c=code: bot.set_my_description(description=description, language_code=c)))
+        calls.append((f"краткое описание ({label})", lambda c=code: bot.set_my_short_description(short_description=short, language_code=c)))
+
+    # удаляем отдельные версии для других языков (пустая строка), чтобы не показывались старые тексты
+    for code in REMOVE_DEDICATED_FOR:
+        calls.append((f"описание ({code}): удаление", lambda c=code: bot.set_my_description(description="", language_code=c)))
+        calls.append((f"краткое описание ({code}): удаление", lambda c=code: bot.set_my_short_description(short_description="", language_code=c)))
+
+    # команды на языке пользователя
+    for code in (None, "az", "ru", "en"):
+        texts_lang = code or "az"
+        label = code or "по умолчанию"
+        commands = [BotCommand(command=c, description=d) for c, d in COMMANDS[texts_lang]]
+        calls.append((f"команды ({label})", lambda c=code, cmds=commands: bot.set_my_commands(cmds, language_code=c)))
+
+    for what, call in calls:
+        try:
+            await call()
+        except Exception:  # noqa: BLE001
+            logger.exception("Не удалось обновить профиль бота: %s", what)
