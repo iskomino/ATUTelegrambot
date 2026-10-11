@@ -21,8 +21,8 @@ def main_menu(lang: str) -> ReplyKeyboardMarkup:
         [
             [t(lang, "btn_faculties"), t(lang, "btn_admission")],
             [t(lang, "btn_news"), t(lang, "btn_ann")],
-            [t(lang, "btn_contacts"), t(lang, "btn_cabinet")],
-            [t(lang, "btn_lang")],
+            [t(lang, "btn_schedule"), t(lang, "btn_contacts")],
+            [t(lang, "btn_cabinet"), t(lang, "btn_lang")],
         ]
     )
 
@@ -32,7 +32,7 @@ def cancel_menu(lang: str) -> ReplyKeyboardMarkup:
 
 
 def cabinet_menu(lang: str) -> ReplyKeyboardMarkup:
-    return _reply([[t(lang, "btn_logout")], [t(lang, "btn_back")]])
+    return _reply([[t(lang, "btn_myschedule")], [t(lang, "btn_logout")], [t(lang, "btn_back")]])
 
 
 def language_inline() -> InlineKeyboardMarkup:
@@ -82,3 +82,33 @@ def contacts_inline(lang: str) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=t(lang, "btn_lms"), url=data.LMS_URL)],
         ]
     )
+
+
+def schedule_faculties_inline(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=f["name"][lang], callback_data=f"sch:f:{i}")]
+            for i, f in enumerate(data.FACULTIES)
+        ]
+    )
+
+
+def schedule_list_inline(lang: str, items: list[tuple[int, str]]) -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton(text=f"📄 {label}"[:60], callback_data=f"sch:g:{sid}")] for sid, label in items]
+    rows.append([InlineKeyboardButton(text=t(lang, "btn_back_inline"), callback_data="sch:list")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def schedule_back_inline(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=t(lang, "btn_back_inline"), callback_data="sch:list")]]
+    )
+
+
+def myschedule_inline(lang: str, mode: str) -> InlineKeyboardMarkup:
+    if mode == "today":
+        button = InlineKeyboardButton(text=t(lang, "btn_week"), callback_data="ms:week")
+    else:
+        button = InlineKeyboardButton(text=t(lang, "btn_today"), callback_data="ms:today")
+    return InlineKeyboardMarkup(inline_keyboard=[[button]])
+

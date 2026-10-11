@@ -33,6 +33,30 @@ MOCK_STUDENTS: dict[str, dict] = {
         "course": 2,
         "group": "IT-201",
         "gpa": "84.5",
+        # расписание на неделю: 0 = понедельник ... 4 = пятница (демо-данные)
+        "schedule": {
+            0: [
+                {"time": "09:00–10:20", "subject": {"az": "Proqramlaşdırma", "ru": "Программирование", "en": "Programming"}, "room": "A-204"},
+                {"time": "10:30–11:50", "subject": {"az": "Diskret riyaziyyat", "ru": "Дискретная математика", "en": "Discrete Mathematics"}, "room": "B-110"},
+            ],
+            1: [
+                {"time": "09:00–10:20", "subject": {"az": "Verilənlər bazası", "ru": "Базы данных", "en": "Databases"}, "room": "A-206"},
+                {"time": "10:30–11:50", "subject": {"az": "İngilis dili", "ru": "Английский язык", "en": "English"}, "room": "C-302"},
+                {"time": "12:30–13:50", "subject": {"az": "Kompüter şəbəkələri", "ru": "Компьютерные сети", "en": "Computer Networks"}, "room": "A-210"},
+            ],
+            2: [
+                {"time": "10:30–11:50", "subject": {"az": "Proqramlaşdırma", "ru": "Программирование", "en": "Programming"}, "room": "Lab-2"},
+                {"time": "12:30–13:50", "subject": {"az": "Diskret riyaziyyat", "ru": "Дискретная математика", "en": "Discrete Mathematics"}, "room": "B-110"},
+            ],
+            3: [
+                {"time": "09:00–10:20", "subject": {"az": "Kompüter şəbəkələri", "ru": "Компьютерные сети", "en": "Computer Networks"}, "room": "Lab-1"},
+                {"time": "10:30–11:50", "subject": {"az": "Verilənlər bazası", "ru": "Базы данных", "en": "Databases"}, "room": "A-206"},
+            ],
+            4: [
+                {"time": "09:00–10:20", "subject": {"az": "İngilis dili", "ru": "Английский язык", "en": "English"}, "room": "C-302"},
+                {"time": "10:30–11:50", "subject": {"az": "Proqramlaşdırma", "ru": "Программирование", "en": "Programming"}, "room": "Lab-2"},
+            ],
+        },
         "grades": [
             ({"az": "Proqramlaşdırma", "ru": "Программирование", "en": "Programming"}, 92),
             ({"az": "Verilənlər bazası", "ru": "Базы данных", "en": "Databases"}, 85),

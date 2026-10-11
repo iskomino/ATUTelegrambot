@@ -1,6 +1,7 @@
 import html
 import logging
 import math
+from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
@@ -25,9 +26,12 @@ from store import (
     reset_attempts,
     start_session,
 )
-from texts import LANGS, T, t
+from texts import LANGS, T, WEEKDAYS, t
 
 logger = logging.getLogger(__name__)
+
+# Азербайджан живёт по UTC+4 без перехода на летнее время
+BAKU_TZ = timezone(timedelta(hours=4))
 router = Router(name="main")
 router.message.filter(F.chat.type == "private")
 
@@ -203,6 +207,79 @@ async def contacts(message: Message, state: FSMContext):
     await message.answer_location(latitude=c["lat"], longitude=c["lon"])
 
 
+# ---------- Расписание (файлы, загружаются админом) ----------
+
+@router.message(is_btn("btn_schedule"))
+async def schedule(message: Message, state: FSMContext):
+    await state.clear()
+    if not message.from_user:
+        return
+    lang = get_lang(message.from_user.id)
+    await message.answer(t(lang, "schedule_title"), reply_markup=kb.schedule_faculties_inline(lang))
+
+
+@router.callback_query(F.data.startswith("sch:"))
+async def cb_schedule(call: CallbackQuery, bot: Bot):
+    lang = get_lang(call.from_user.id)
+    parts = (call.data or "").split(":")
+    action = parts[1] if len(parts) > 1 else ""
+    arg = parts[2] if len(parts) > 2 else ""
+
+    if action == "list":
+        await call.answer()
+        if isinstance(call.message, Message):
+            try:
+                await call.message.edit_text(
+                    t(lang, "schedule_title"), reply_markup=kb.schedule_faculties_inline(lang)
+                )
+            except TelegramBadRequest:
+                pass
+        return
+
+    if action == "f":
+        if not arg.isdigit() or int(arg) >= len(data.FACULTIES):
+            await call.answer()
+            return
+        idx = int(arg)
+        faculty = html.escape(data.FACULTIES[idx]["name"][lang])
+        items = [(sid, label) for sid, _, label in await db.list_schedules(idx)]
+        if items:
+            text, markup = t(lang, "schedule_pick", faculty=faculty), kb.schedule_list_inline(lang, items)
+        else:
+            text, markup = t(lang, "schedule_empty", faculty=faculty), kb.schedule_back_inline(lang)
+        await call.answer()
+        if isinstance(call.message, Message):
+            try:
+                await call.message.edit_text(text, reply_markup=markup)
+            except TelegramBadRequest:
+                pass
+        return
+
+    if action == "g":
+        if not arg.isdigit():
+            await call.answer()
+            return
+        row = await db.get_schedule(int(arg))
+        await call.answer()
+        if row is None:  # файл удалён админом, пока у пользователя висело старое меню
+            await bot.send_message(call.from_user.id, t(lang, "schedule_file_error"))
+            return
+        file_id, file_type, label, faculty_idx = row
+        faculty_name = data.FACULTIES[faculty_idx]["name"][lang] if faculty_idx < len(data.FACULTIES) else ""
+        caption = html.escape(f"🗓 {faculty_name} · {label}")
+        try:
+            if file_type == "photo":
+                await bot.send_photo(call.from_user.id, file_id, caption=caption)
+            else:
+                await bot.send_document(call.from_user.id, file_id, caption=caption)
+        except TelegramBadRequest:
+            logger.exception("Не удалось отправить расписание id=%s", arg)
+            await bot.send_message(call.from_user.id, t(lang, "schedule_file_error"))
+        return
+
+    await call.answer()
+
+
 # ---------- Кабинет студента (демо) ----------
 
 async def show_profile(message: Message, lang: str, fin: str) -> None:
@@ -250,6 +327,68 @@ async def cabinet(message: Message, state: FSMContext):
         t(lang, "cabinet_intro", fin=DEMO_FIN, password=DEMO_PASSWORD),
         reply_markup=kb.cancel_menu(lang),
     )
+
+
+def _today_weekday() -> int:
+    return datetime.now(BAKU_TZ).weekday()
+
+
+def _lessons_text(lang: str, lessons: list[dict]) -> str:
+    return "\n".join(
+        f"🕘 {html.escape(item['time'])} · {html.escape(item['subject'][lang])} · 📍 {html.escape(item['room'])}"
+        for item in lessons
+    )
+
+
+def _myschedule_view(lang: str, student: dict, mode: str):
+    timetable = student.get("schedule", {})
+    if mode == "week":
+        blocks = []
+        for day in range(5):
+            lessons = timetable.get(day, [])
+            body = _lessons_text(lang, lessons) if lessons else t(lang, "myschedule_free")
+            blocks.append(f"<b>{WEEKDAYS[lang][day]}</b>\n{body}")
+        text = t(lang, "myschedule_week", lessons="\n\n".join(blocks))
+    else:
+        day = _today_weekday()
+        lessons = timetable.get(day, [])
+        body = _lessons_text(lang, lessons) if lessons else t(lang, "myschedule_none")
+        text = t(lang, "myschedule_today", day=WEEKDAYS[lang][day], lessons=body)
+    return text, kb.myschedule_inline(lang, "week" if mode == "week" else "today")
+
+
+@router.message(is_btn("btn_myschedule"))
+async def my_schedule(message: Message, state: FSMContext):
+    await state.clear()
+    if not message.from_user:
+        return
+    uid = message.from_user.id
+    lang = get_lang(uid)
+    session = get_session(uid)
+    student = get_student(session["fin"]) if session else None
+    if not student:  # нет активной сессии: отправляем на вход в кабинет
+        end_session(uid)
+        await cabinet(message, state)
+        return
+    text, markup = _myschedule_view(lang, student, "today")
+    await message.answer(text, reply_markup=markup)
+
+
+@router.callback_query(F.data.in_({"ms:today", "ms:week"}))
+async def cb_myschedule(call: CallbackQuery):
+    lang = get_lang(call.from_user.id)
+    session = get_session(call.from_user.id)
+    student = get_student(session["fin"]) if session else None
+    if not student:
+        await call.answer(t(lang, "session_expired"), show_alert=True)
+        return
+    text, markup = _myschedule_view(lang, student, "week" if call.data == "ms:week" else "today")
+    await call.answer()
+    if isinstance(call.message, Message):
+        try:
+            await call.message.edit_text(text, reply_markup=markup)
+        except TelegramBadRequest:
+            pass
 
 
 @router.message(is_btn("btn_logout"))

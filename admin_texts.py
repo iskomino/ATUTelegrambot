@@ -147,3 +147,66 @@ def at(lang: str, key: str, **kwargs) -> str:
 
 def section_name(lang: str, section: str) -> str:
     return AT.get(lang, AT[DEFAULT_LANG]).get(f"sec_{section}", section)
+
+
+_AT_EXTRA = {
+    "az": {
+        "btn_schedule": "🗓 Dərs cədvəli (fayllar)",
+        "btn_sch_add": "➕ Cədvəl əlavə et",
+        "btn_sch_del": "🗑 Cədvəl sil",
+        "sec_schedule": "Dərs cədvəli",
+        "sec_myschedule": "Mənim cədvəlim",
+        "sch_title": "🗓 <b>Yüklənmiş dərs cədvəlləri</b>\n\n{summary}",
+        "sch_none_faculty": "—",
+        "sch_pick_faculty": "Cədvəl əlavə etmək üçün fakültəni seçin:",
+        "sch_ask_label": "🏛 <b>{faculty}</b>\n\nCədvəlin adını yazın (məsələn: «1-ci kurs, II semestr»), maksimum {max} simvol:",
+        "sch_bad_label": "Ad 1-dən {max} simvoladək olmalıdır. Yenidən göndərin.",
+        "sch_ask_file": "Indi cədvəl faylını göndərin (PDF, Word, Excel və ya şəkil). Keyfiyyət itməməsi üçün şəkli də fayl kimi (📎) göndərmək məsləhətdir.",
+        "sch_bad_file": "Zəhmət olmasa fayl (📎) və ya şəkil göndərin.",
+        "sch_file_too_big": "Fayl çox böyükdür (maksimum {max} MB). Daha kiçik fayl göndərin.",
+        "sch_saved": "✅ Cədvəl yadda saxlanıldı.",
+        "sch_del_title": "🗑 Silmək istədiyiniz cədvəli seçin:",
+        "sch_del_empty": "Silinəcək cədvəl yoxdur.",
+        "sch_deleted": "Silindi",
+    },
+    "ru": {
+        "btn_schedule": "🗓 Расписание (файлы)",
+        "btn_sch_add": "➕ Добавить расписание",
+        "btn_sch_del": "🗑 Удалить расписание",
+        "sec_schedule": "Расписание",
+        "sec_myschedule": "Моё расписание",
+        "sch_title": "🗓 <b>Загруженные расписания</b>\n\n{summary}",
+        "sch_none_faculty": "—",
+        "sch_pick_faculty": "Выберите факультет, для которого добавить расписание:",
+        "sch_ask_label": "🏛 <b>{faculty}</b>\n\nВведите название расписания (например: «1 курс, II семестр»), до {max} символов:",
+        "sch_bad_label": "Название должно быть от 1 до {max} символов. Отправьте ещё раз.",
+        "sch_ask_file": "Теперь отправьте файл расписания (PDF, Word, Excel или фото). Лучше отправлять именно файлом (📎), чтобы не терялось качество.",
+        "sch_bad_file": "Пожалуйста, отправьте файл (📎) или фото.",
+        "sch_file_too_big": "Файл слишком большой (максимум {max} МБ). Отправьте файл поменьше.",
+        "sch_saved": "✅ Расписание сохранено.",
+        "sch_del_title": "🗑 Выберите расписание для удаления:",
+        "sch_del_empty": "Нет расписаний для удаления.",
+        "sch_deleted": "Удалено",
+    },
+    "en": {
+        "btn_schedule": "🗓 Schedules (files)",
+        "btn_sch_add": "➕ Add schedule",
+        "btn_sch_del": "🗑 Delete schedule",
+        "sec_schedule": "Schedule",
+        "sec_myschedule": "My schedule",
+        "sch_title": "🗓 <b>Uploaded schedules</b>\n\n{summary}",
+        "sch_none_faculty": "—",
+        "sch_pick_faculty": "Choose the faculty to add a schedule for:",
+        "sch_ask_label": "🏛 <b>{faculty}</b>\n\nEnter a name for the schedule (for example: “Year 1, semester II”), up to {max} characters:",
+        "sch_bad_label": "The name must be 1 to {max} characters long. Send it again.",
+        "sch_ask_file": "Now send the schedule file (PDF, Word, Excel or a photo). Sending it as a file (📎) keeps the quality.",
+        "sch_bad_file": "Please send a file (📎) or a photo.",
+        "sch_file_too_big": "The file is too large (maximum {max} MB). Send a smaller file.",
+        "sch_saved": "✅ Schedule saved.",
+        "sch_del_title": "🗑 Choose the schedule to delete:",
+        "sch_del_empty": "There are no schedules to delete.",
+        "sch_deleted": "Deleted",
+    },
+}
+for _lang, _extra in _AT_EXTRA.items():
+    AT[_lang].update(_extra)

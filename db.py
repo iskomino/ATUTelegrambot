@@ -25,6 +25,14 @@ CREATE TABLE IF NOT EXISTS events (
     ts INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
+CREATE TABLE IF NOT EXISTS schedules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    faculty_idx INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    file_id TEXT NOT NULL,
+    file_type TEXT NOT NULL,
+    created INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS kv (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -141,6 +149,60 @@ def _kv_set(key: str, value: str) -> None:
         (key, value),
     )
     conn.commit()
+
+
+# ---------- расписания (файлы по факультетам; сами файлы хранит Telegram, у нас только file_id) ----------
+
+def _add_schedule(faculty_idx: int, label: str, file_id: str, file_type: str) -> int:
+    conn = _db()
+    cur = conn.execute(
+        "INSERT INTO schedules(faculty_idx, label, file_id, file_type, created) VALUES(?, ?, ?, ?, ?)",
+        (faculty_idx, label, file_id, file_type, int(time.time())),
+    )
+    conn.commit()
+    return int(cur.lastrowid)
+
+
+def _list_schedules(faculty_idx: int | None = None) -> list[tuple[int, int, str]]:
+    """Возвращает [(id, faculty_idx, label)], отсортировано по факультету и порядку добавления."""
+    if faculty_idx is None:
+        rows = _db().execute("SELECT id, faculty_idx, label FROM schedules ORDER BY faculty_idx, id").fetchall()
+    else:
+        rows = _db().execute(
+            "SELECT id, faculty_idx, label FROM schedules WHERE faculty_idx = ? ORDER BY id", (faculty_idx,)
+        ).fetchall()
+    return [(int(r[0]), int(r[1]), str(r[2])) for r in rows]
+
+
+def _get_schedule(schedule_id: int) -> tuple[str, str, str, int] | None:
+    """Возвращает (file_id, file_type, label, faculty_idx) или None."""
+    row = _db().execute(
+        "SELECT file_id, file_type, label, faculty_idx FROM schedules WHERE id = ?", (schedule_id,)
+    ).fetchone()
+    return (row[0], row[1], row[2], int(row[3])) if row else None
+
+
+def _delete_schedule(schedule_id: int) -> bool:
+    conn = _db()
+    cur = conn.execute("DELETE FROM schedules WHERE id = ?", (schedule_id,))
+    conn.commit()
+    return cur.rowcount > 0
+
+
+async def add_schedule(faculty_idx: int, label: str, file_id: str, file_type: str) -> int:
+    return await _call(_add_schedule, faculty_idx, label, file_id, file_type)
+
+
+async def list_schedules(faculty_idx: int | None = None) -> list[tuple[int, int, str]]:
+    return await _call(_list_schedules, faculty_idx)
+
+
+async def get_schedule(schedule_id: int) -> tuple[str, str, str, int] | None:
+    return await _call(_get_schedule, schedule_id)
+
+
+async def delete_schedule(schedule_id: int) -> bool:
+    return await _call(_delete_schedule, schedule_id)
 
 
 async def touch_user(uid: int, section: str | None = None) -> None:

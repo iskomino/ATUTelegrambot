@@ -17,6 +17,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 import content
+import data
 import db
 from admin_texts import at, section_name
 from config import ADMIN_IDS
@@ -31,6 +32,8 @@ admin_router.callback_query.filter(F.from_user.id.in_(ADMIN_IDS))
 
 FIELDS = ("phone", "email", "address")
 MAX_BROADCAST_LEN = 3500
+MAX_LABEL_LEN = 40
+MAX_FILE_MB = 20
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _PHONE_RE = re.compile(r"^[0-9+()\-\s]{5,30}$")
@@ -49,6 +52,17 @@ class EditContact(StatesGroup):
     value = State()
 
 
+class ScheduleAdd(StatesGroup):
+    label = State()
+    file = State()
+
+
+async def _is_stray_input(message: Message) -> bool:
+    """Любое сообщение, кроме команд и кнопок меню (в том числе стикеры, голосовые и т.п.)."""
+    text = message.text
+    return not (text and (text.startswith("/") or text in ALL_REPLY_BUTTONS))
+
+
 def _kb(rows: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text=t, callback_data=d) for t, d in row] for row in rows]
@@ -61,6 +75,7 @@ def panel_kb(lang: str) -> InlineKeyboardMarkup:
             [(at(lang, "btn_stats"), "adm:stats")],
             [(at(lang, "btn_broadcast"), "adm:bc")],
             [(at(lang, "btn_refresh"), "adm:news")],
+            [(at(lang, "btn_schedule"), "adm:sch")],
             [(at(lang, "btn_contacts"), "adm:contacts")],
         ]
     )
@@ -295,6 +310,134 @@ async def got_contact_value(message: Message, state: FSMContext):
     await state.clear()
     text, markup = _contacts_view(lang)
     await message.answer(at(lang, "saved") + "\n\n" + text, reply_markup=markup)
+
+
+# ---------- Расписание (файлы) ----------
+
+async def _schedule_view(lang: str) -> tuple[str, InlineKeyboardMarkup]:
+    by_faculty: dict[int, list[str]] = {}
+    for _, faculty_idx, label in await db.list_schedules():
+        by_faculty.setdefault(faculty_idx, []).append(label)
+    lines = []
+    for i, faculty in enumerate(data.FACULTIES):
+        labels = by_faculty.get(i)
+        value = html.escape(", ".join(labels)) if labels else at(lang, "sch_none_faculty")
+        lines.append(f"🏛 <b>{html.escape(faculty['name'][lang])}</b>: {value}")
+    markup = _kb(
+        [
+            [(at(lang, "btn_sch_add"), "adm:sch_add")],
+            [(at(lang, "btn_sch_del"), "adm:sch_delmenu")],
+            [(at(lang, "btn_home"), "adm:home")],
+        ]
+    )
+    return at(lang, "sch_title", summary="\n".join(lines)), markup
+
+
+@admin_router.callback_query(F.data == "adm:sch")
+async def cb_sch(call: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await call.answer()
+    text, markup = await _schedule_view(get_lang(call.from_user.id))
+    await _edit(call, text, markup)
+
+
+@admin_router.callback_query(F.data == "adm:sch_add")
+async def cb_sch_add(call: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await call.answer()
+    lang = get_lang(call.from_user.id)
+    rows = [[(f["name"][lang], f"adm:sch_f:{i}")] for i, f in enumerate(data.FACULTIES)]
+    rows.append([(at(lang, "btn_cancel"), "adm:sch")])
+    await _edit(call, at(lang, "sch_pick_faculty"), _kb(rows))
+
+
+@admin_router.callback_query(F.data.startswith("adm:sch_f:"))
+async def cb_sch_faculty(call: CallbackQuery, state: FSMContext):
+    raw = (call.data or "").split(":")[-1]
+    if not raw.isdigit() or int(raw) >= len(data.FACULTIES):
+        await call.answer()
+        return
+    lang = get_lang(call.from_user.id)
+    idx = int(raw)
+    await state.set_state(ScheduleAdd.label)
+    await state.update_data(faculty=idx)
+    await call.answer()
+    await _edit(
+        call,
+        at(lang, "sch_ask_label", faculty=html.escape(data.FACULTIES[idx]["name"][lang]), max=MAX_LABEL_LEN),
+        _kb([[(at(lang, "btn_cancel"), "adm:sch")]]),
+    )
+
+
+@admin_router.message(ScheduleAdd.label, *_PLAIN_TEXT)
+async def got_sch_label(message: Message, state: FSMContext):
+    lang = get_lang(message.from_user.id)
+    label = (message.text or "").strip()
+    if not 1 <= len(label) <= MAX_LABEL_LEN:
+        await message.answer(at(lang, "sch_bad_label", max=MAX_LABEL_LEN))
+        return
+    await state.update_data(label=label)
+    await state.set_state(ScheduleAdd.file)
+    await message.answer(at(lang, "sch_ask_file"), reply_markup=_kb([[(at(lang, "btn_cancel"), "adm:sch")]]))
+
+
+@admin_router.message(ScheduleAdd.file, F.document | F.photo)
+async def got_sch_file(message: Message, state: FSMContext):
+    lang = get_lang(message.from_user.id)
+    stored = await state.get_data()
+    faculty_idx, label = stored.get("faculty"), stored.get("label")
+    if not isinstance(faculty_idx, int) or not 0 <= faculty_idx < len(data.FACULTIES) or not label:
+        await state.clear()
+        return
+    if message.document:
+        if (message.document.file_size or 0) > MAX_FILE_MB * 1024 * 1024:
+            await message.answer(at(lang, "sch_file_too_big", max=MAX_FILE_MB))
+            return
+        file_id, file_type = message.document.file_id, "document"
+    else:
+        file_id, file_type = message.photo[-1].file_id, "photo"
+    await db.add_schedule(faculty_idx, label, file_id, file_type)
+    await state.clear()
+    text, markup = await _schedule_view(lang)
+    await message.answer(at(lang, "sch_saved") + "\n\n" + text, reply_markup=markup)
+
+
+@admin_router.message(ScheduleAdd.file, _is_stray_input)
+async def sch_file_wrong(message: Message):
+    await message.answer(at(get_lang(message.from_user.id), "sch_bad_file"))
+
+
+async def _delete_menu(lang: str) -> tuple[str, InlineKeyboardMarkup]:
+    rows_db = await db.list_schedules()
+    if not rows_db:
+        return at(lang, "sch_del_empty"), _kb([[(at(lang, "btn_home"), "adm:sch")]])
+    rows = []
+    for sid, faculty_idx, label in rows_db:
+        faculty = data.FACULTIES[faculty_idx]["name"][lang] if faculty_idx < len(data.FACULTIES) else "?"
+        rows.append([(f"🗑 {faculty[:22]}: {label}"[:60], f"adm:sch_del:{sid}")])
+    rows.append([(at(lang, "btn_home"), "adm:sch")])
+    return at(lang, "sch_del_title"), _kb(rows)
+
+
+@admin_router.callback_query(F.data == "adm:sch_delmenu")
+async def cb_sch_delmenu(call: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await call.answer()
+    text, markup = await _delete_menu(get_lang(call.from_user.id))
+    await _edit(call, text, markup)
+
+
+@admin_router.callback_query(F.data.startswith("adm:sch_del:"))
+async def cb_sch_delete(call: CallbackQuery):
+    raw = (call.data or "").split(":")[-1]
+    lang = get_lang(call.from_user.id)
+    if not raw.isdigit():
+        await call.answer()
+        return
+    await db.delete_schedule(int(raw))
+    await call.answer(at(lang, "sch_deleted"))
+    text, markup = await _delete_menu(lang)
+    await _edit(call, text, markup)
 
 
 # ---------- Устаревшие кнопки ----------

@@ -137,6 +137,65 @@ def t(lang: str, key: str, **kwargs) -> str:
     return text.format(**kwargs) if kwargs else text
 
 
+# ---------- Расписание ----------
+
+_EXTRA = {
+    "az": {
+        "btn_schedule": "🗓 Dərs cədvəli",
+        "btn_myschedule": "📅 Mənim cədvəlim",
+        "btn_today": "📅 Bu gün",
+        "btn_week": "📆 Bütün həftə",
+        "schedule_title": "🗓 <b>Dərs cədvəli</b>\n\nFakültəni seçin:",
+        "schedule_pick": "🗓 <b>{faculty}</b>\n\nCədvəli seçin:",
+        "schedule_empty": "🗓 <b>{faculty}</b>\n\nBu fakültə üçün cədvəl hələ yüklənməyib. Zəhmət olmasa sonra yoxlayın.",
+        "schedule_file_error": "⚠️ Fayl hazırda əlçatan deyil. Zəhmət olmasa universitet administrasiyasına müraciət edin.",
+        "myschedule_today": "📅 <b>Bu gün</b> — {day}\n\n{lessons}\n\n⚠️ <i>Bunlar demo məlumatlardır.</i>",
+        "myschedule_week": "📆 <b>Həftəlik cədvəl</b>\n\n{lessons}\n\n⚠️ <i>Bunlar demo məlumatlardır.</i>",
+        "myschedule_none": "Bu gün dərs yoxdur 🎉",
+        "myschedule_free": "dərs yoxdur",
+        "session_expired": "Sessiya başa çatıb. Zəhmət olmasa kabinetə yenidən daxil olun.",
+    },
+    "ru": {
+        "btn_schedule": "🗓 Расписание",
+        "btn_myschedule": "📅 Моё расписание",
+        "btn_today": "📅 Сегодня",
+        "btn_week": "📆 Вся неделя",
+        "schedule_title": "🗓 <b>Расписание занятий</b>\n\nВыберите факультет:",
+        "schedule_pick": "🗓 <b>{faculty}</b>\n\nВыберите расписание:",
+        "schedule_empty": "🗓 <b>{faculty}</b>\n\nРасписание для этого факультета ещё не загружено. Загляните позже.",
+        "schedule_file_error": "⚠️ Файл сейчас недоступен. Пожалуйста, обратитесь в администрацию университета.",
+        "myschedule_today": "📅 <b>Сегодня</b> — {day}\n\n{lessons}\n\n⚠️ <i>Это демо-данные.</i>",
+        "myschedule_week": "📆 <b>Расписание на неделю</b>\n\n{lessons}\n\n⚠️ <i>Это демо-данные.</i>",
+        "myschedule_none": "Сегодня занятий нет 🎉",
+        "myschedule_free": "занятий нет",
+        "session_expired": "Сессия истекла. Пожалуйста, войдите в кабинет заново.",
+    },
+    "en": {
+        "btn_schedule": "🗓 Schedule",
+        "btn_myschedule": "📅 My schedule",
+        "btn_today": "📅 Today",
+        "btn_week": "📆 Whole week",
+        "schedule_title": "🗓 <b>Class schedule</b>\n\nChoose a faculty:",
+        "schedule_pick": "🗓 <b>{faculty}</b>\n\nChoose a schedule:",
+        "schedule_empty": "🗓 <b>{faculty}</b>\n\nNo schedule has been uploaded for this faculty yet. Please check back later.",
+        "schedule_file_error": "⚠️ The file is unavailable right now. Please contact the university administration.",
+        "myschedule_today": "📅 <b>Today</b> — {day}\n\n{lessons}\n\n⚠️ <i>This is demo data.</i>",
+        "myschedule_week": "📆 <b>Weekly schedule</b>\n\n{lessons}\n\n⚠️ <i>This is demo data.</i>",
+        "myschedule_none": "No classes today 🎉",
+        "myschedule_free": "no classes",
+        "session_expired": "Your session has expired. Please log in to your account again.",
+    },
+}
+for _lang, _extra in _EXTRA.items():
+    T[_lang].update(_extra)
+
+WEEKDAYS: dict[str, list[str]] = {
+    "az": ["Bazar ertəsi", "Çərşənbə axşamı", "Çərşənbə", "Cümə axşamı", "Cümə", "Şənbə", "Bazar"],
+    "ru": ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"],
+    "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+}
+
+
 # ---------- Служебные таблицы для статистики и фильтров ----------
 
 SECTION_BUTTONS = (
@@ -144,8 +203,10 @@ SECTION_BUTTONS = (
     "btn_admission",
     "btn_news",
     "btn_ann",
+    "btn_schedule",
     "btn_contacts",
     "btn_cabinet",
+    "btn_myschedule",
     "btn_lang",
 )
 # текст кнопки (на любом языке) -> имя раздела, например "news"
